@@ -58,40 +58,50 @@ def postprocessOutputs(outputs, image_shape):
     return indices, boxes, confidences, class_ids
 
 
-def obstacleAndBoundingBoxes(postprocessed_tuple, image):
+def obstacleAndBoundingBoxes(postprocessed_tuple, image, return_marked_image = True):
     indices, boxes, confidences, class_ids = postprocessed_tuple
     image_area = image.shape[0]*image.shape[1]
     clear = True #is the front clear?
 
     for i in indices:
         x, y, width, height = boxes[i]
-        label = f"{classes[class_ids[i]]}: {confidences[i]:.2f}"
-        color = colors[class_ids[i]]
-        cv2.rectangle(image, (x, y), (x + width, y + height), color, thickness=2)
-        cv2.putText(image, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         area_covered_class = width*height/(image_area)
-        print(f'Class {classes[class_ids[i]]} covers {(width, height)} {width*height} pixels, '
-              f'i.e. {100*area_covered_class:.{3}}% of the image.')
+        if return_marked_image:
+            label = f"{classes[class_ids[i]]}: {confidences[i]:.2f}"
+            color = colors[class_ids[i]]
+            cv2.rectangle(image, (x, y), (x + width, y + height), color, thickness=2)
+            cv2.putText(image, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            print(f'Class {classes[class_ids[i]]} covers {(width, height)} {width*height} pixels, '
+                f'i.e. {100*area_covered_class:.{3}}% of the image.')
+            
         if area_covered_class > area_treshold[class_ids[i]]:
+            print(f'Be careful! Obstacle {classes[class_ids[i]]} in front!')
             clear = False
-    return clear, image
+            
+    if return_marked_image:
+        return clear, image
+    else:
+        return clear
 
 
 #Unifies the execution of the functions for an image
-def pipeline(image):
+def pipeline(image, return_marked_image = True):
     outputs = forwardModel(image)
     post_tuple = postprocessOutputs(outputs, image.shape[0:2])
-    return obstacleAndBoundingBoxes(post_tuple, image)
+    return obstacleAndBoundingBoxes(post_tuple, image, return_marked_image)
 
 
 
 if __name__=='__main__':
+    #Static test, one image
     image = cv2.imread('boat.jpg')
     print(f'is clear? {pipeline(image)[0]}')
     cv2.imshow('Object Detection', image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+    # Dynamic test, continuous stream from the camera
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Error: Could not open camera.")
@@ -102,13 +112,15 @@ if __name__=='__main__':
             print("Error: Could not read frame.")
             break
         t = time.time()
-        clear, img = pipeline(frame)
+        pipeline_result = pipeline(frame, True)
         print(f'elapsed {time.time() - t}')
-        cv2.imshow('Camera Feed', img)
+        if type(pipeline_result) == tuple and len(pipeline_result) == 2:
+            cleara, img = pipeline_result
+            cv2.imshow('Camera Feed', img)
 
-        # Check for the 'q' key to exit the loop
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # Check for the 'q' key to exit the loop
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
     
     
