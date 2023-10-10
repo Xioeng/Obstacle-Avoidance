@@ -18,19 +18,19 @@ colors = np.random.uniform(0, 255, size=(len(classes), 3))
 area_treshold = 0.2*np.ones((len(classes),))
 
 #Resizes the image for the detection algorithm
-def preprocess_image(image):
+def preprocessImage(image):
     blob = cv2.dnn.blobFromImage(image, 1.0 / 255.0, (320, 320), swapRB=True, crop=False)
     return blob
 
 #Processes the image through the CNN
-def forward_model(image):
-    blob = preprocess_image(image)
+def forwardModel(image):
+    blob = preprocessImage(image)
     net.setInput(blob)
     # Perform forward pass and get output
     return net.forward(net.getUnconnectedOutLayersNames())
 
 #Postprocess YOLO outputs to generate the bounding boxes
-def postprocess_outputs(outputs, image_shape):
+def postprocessOutputs(outputs, image_shape):
     conf_threshold = 0.55
     nms_threshold = 0.4
     image_width, image_height = image_shape
@@ -58,7 +58,7 @@ def postprocess_outputs(outputs, image_shape):
     return indices, boxes, confidences, class_ids
 
 
-def obstacle_and_bounding_boxes(postprocessed_tuple, image):
+def obstacleAndBoundingBoxes(postprocessed_tuple, image):
     indices, boxes, confidences, class_ids = postprocessed_tuple
     image_area = image.shape[0]*image.shape[1]
     clear = True #is the front clear?
@@ -79,9 +79,9 @@ def obstacle_and_bounding_boxes(postprocessed_tuple, image):
 
 #Unifies the execution of the functions for an image
 def pipeline(image):
-    outputs = forward_model(image)
-    post_tuple = postprocess_outputs(outputs, image.shape[0:2])
-    return obstacle_and_bounding_boxes(post_tuple, image)
+    outputs = forwardModel(image)
+    post_tuple = postprocessOutputs(outputs, image.shape[0:2])
+    return obstacleAndBoundingBoxes(post_tuple, image)
 
 
 
